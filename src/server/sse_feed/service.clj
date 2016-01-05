@@ -1,10 +1,23 @@
 (ns sse-feed.service
   (:require [io.pedestal.http :as bootstrap]
             [io.pedestal.http.sse :as sse]
-            [io.pedestal.http.route :as route]
             [io.pedestal.http.route.definition :refer [defroutes]]
             [ring.util.response :as ring-resp]
             [clojure.core.async :as async]))
+
+(defn send-article
+  [event-channel feed-channel]
+  (async/go-loop [article (async/<! feed-channel)]
+    (when (async/>! event-channel {:name "article" :data (pr-str article)})
+      (recur (async/<! feed-channel)))))
+
+(def feed-channel (async/chan 1))
+
+(defn sse-stream-ready
+  "Starts sending counter events to client."
+  [event-channel ctx]
+  (let [{:keys [request]} ctx]
+    (send-article event-channel feed-channel)))
 
 (defn about-page
   [_]
@@ -13,7 +26,8 @@
 ;; Wire root URL to sse event stream
 (defroutes
   routes
-  [[["/about" {:get about-page}]]])
+  [[["/" {:get [::send-article (sse/start-event-stream sse-stream-ready)]}
+     ["/about" {:get about-page}]]]])
 
 ;; Consumed by server-sent-events.server/create-server
 (def service {:env                      :prod
@@ -25,7 +39,5 @@
               ::bootstrap/routes        routes
               ;; Root for resource interceptor that is available by default.
               ::bootstrap/resource-path "/public"
-              ;; Either :jetty or :tomcat (see comments in project.clj
-              ;; to enable Tomcat)
               ::bootstrap/type          :immutant
               ::bootstrap/port          8080})
