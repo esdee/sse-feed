@@ -14,6 +14,9 @@
                  [org.slf4j/jcl-over-slf4j       "1.7.7"]
                  [org.slf4j/log4j-over-slf4j     "1.7.7"]
 
+                 ;; Redis
+                 [redis-async "0.3.2"]
+
                  ;; ClojureScript
                  [org.clojure/clojurescript "1.7.189"]
                  [org.clojure/core.async    "0.2.374"]

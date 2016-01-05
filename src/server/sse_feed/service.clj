@@ -1,26 +1,37 @@
 (ns sse-feed.service
-  (:require [io.pedestal.http :as bootstrap]
-            [io.pedestal.http.sse :as sse]
+  (:require [clojure.core.async   :as async]
+            [clojure.tools.reader :as reader]
+            [io.pedestal.http     :as bootstrap]
             [io.pedestal.http.route.definition :refer [defroutes]]
-            [ring.util.response :as ring-resp]
-            [clojure.core.async :as async]))
+            [io.pedestal.http.sse :as sse]
+            [redis-async.client   :as redis-client]
+            [redis-async.core     :as redis-async]
+            [ring.util.response   :as ring-resp]))
+
+(def redis-conn (redis-async/make-pool {:hostname "localhost" :port 6379}))
+
+(def topic "articles")
+
+(defn redis->feed-channel
+  [redis-conn topic]
+  (async/pipe (redis-client/subscribe redis-conn topic)
+              (async/chan 1 (map #(reader/read-string (.unwrap %))))))
 
 (defn send-article
-  [event-channel feed-channel]
-  (async/go-loop [article (async/<! feed-channel)]
-    (when (async/>! event-channel {:name "article" :data (pr-str article)})
-      (recur (async/<! feed-channel)))))
-
-(def feed-channel (async/chan 1))
+  [event-channel redis-conn topic]
+  (let [articles-channel (redis->feed-channel redis-conn topic)]
+    (async/go-loop [article (async/<! articles-channel)]
+      (when (async/>! event-channel {:name "article" :data (pr-str article)})
+        (recur (async/<! articles-channel))))))
 
 (defn sse-stream-ready
   "Starts sending counter events to client."
   [event-channel ctx]
   (let [{:keys [request]} ctx]
-    (send-article event-channel feed-channel)))
+    (send-article event-channel redis-conn topic)))
 
 (defn about-page
-  [_]
+  [request]
   (ring-resp/response "Server Sent Service"))
 
 ;; Wire root URL to sse event stream
