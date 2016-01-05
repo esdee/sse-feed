@@ -1,0 +1,15 @@
+/.idea
+/sse-feed.iml
+/.lein-repl-history
+/figwheel_server.log
+/target
+/classes
+/checkouts
+pom.xml
+pom.xml.asc
+*.jar
+*.class
+/.lein-*
+/.nrepl-port
+.hgignore
+.hg/
