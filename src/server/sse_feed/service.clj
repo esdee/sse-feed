@@ -1,12 +1,12 @@
 (ns sse-feed.service
-  (:require [clojure.core.async   :as async]
-            [clojure.tools.reader :as reader]
-            [io.pedestal.http     :as bootstrap]
+  (:require [clojure.core.async :as async]
+            [clojure.edn :as edn]
+            [io.pedestal.http :as bootstrap]
             [io.pedestal.http.route.definition :refer [defroutes]]
             [io.pedestal.http.sse :as sse]
-            [redis-async.client   :as redis-client]
-            [redis-async.core     :as redis-async]
-            [ring.util.response   :as ring-resp]))
+            [redis-async.client :as redis-client]
+            [redis-async.core :as redis-async]
+            [ring.util.response :as ring-resp]))
 
 (def redis-conn (redis-async/make-pool {:hostname "localhost" :port 6379}))
 
@@ -15,7 +15,7 @@
 (defn redis->feed-channel
   [redis-conn topic]
   (async/pipe (redis-client/subscribe redis-conn topic)
-              (async/chan 1 (map #(reader/read-string (.unwrap %))))))
+              (async/chan 1 (map #(edn/read-string (.unwrap %))))))
 
 (defn send-article
   [event-channel redis-conn topic]
@@ -26,11 +26,13 @@
 
 (defn sse-stream-ready
   "Starts sending counter events to client."
+  ; citing context in fn args for documentation
   [event-channel ctx]
   (let [{:keys [request]} ctx]
     (send-article event-channel redis-conn topic)))
 
 (defn about-page
+  ; just making note of what is sent to this fn
   [request]
   (ring-resp/response "Server Sent Service"))
 
