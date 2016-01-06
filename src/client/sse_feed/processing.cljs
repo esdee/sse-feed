@@ -5,6 +5,5 @@
 (extend-protocol Message
   messages/Article
   (process-message [article {:keys [articles] :as app}]
-    (->> article
-         (conj (take 9 articles))
-         (assoc app :articles))))
+    (let [top-10 (cons article (take 9 articles))]
+      (assoc app :articles top-10))))
