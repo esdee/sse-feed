@@ -5,28 +5,32 @@
             :url  "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.7.0"]
                  ;; Server
-                 [io.pedestal/pedestal.service  "0.4.1"]
+                 [io.pedestal/pedestal.service "0.4.1"]
                  [io.pedestal/pedestal.immutant "0.4.1"]
 
                  ;; Logging
                  [ch.qos.logback/logback-classic "1.1.2" :exclusions [[org.slf4j/slf4j-api]]]
-                 [org.slf4j/jul-to-slf4j         "1.7.7"]
-                 [org.slf4j/jcl-over-slf4j       "1.7.7"]
-                 [org.slf4j/log4j-over-slf4j     "1.7.7"]
+                 [org.slf4j/jul-to-slf4j "1.7.7"]
+                 [org.slf4j/jcl-over-slf4j "1.7.7"]
+                 [org.slf4j/log4j-over-slf4j "1.7.7"]
 
                  ;; Redis
                  [redis-async "0.3.2"]
 
                  ;; ClojureScript
                  [org.clojure/clojurescript "1.7.189"]
-                 [org.clojure/core.async    "0.2.374"]
-                 [cljs-http                 "0.1.39"]
-                 [reagent                   "0.6.0-alpha" :exclusions [cljsjs/react]]
-                 [cljsjs/react-with-addons  "0.14.3-0"]
-                 [figwheel-sidecar          "0.5.0-2"]
-                 [petrol                    "0.1.3"]]
+                 [org.clojure/core.async "0.2.374"]
+                 [cljs-http "0.1.39"]
+                 [reagent "0.6.0-alpha" :exclusions [cljsjs/react]]
+                 [cljsjs/react-with-addons "0.14.3-0"]
+                 [figwheel-sidecar "0.5.0-2"]
+                 [petrol "0.1.3"]
 
-  :plugins [[lein-cljsbuild "1.1.1"]]
+                 ;; Front End Testing
+                 [lein-doo       "0.1.6"]]
+
+  :plugins [[lein-cljsbuild "1.1.1"]
+            [lein-doo       "0.1.6"]]
 
   :resource-paths ["resources" "config"]
 
@@ -49,5 +53,9 @@
                                :asset-path    "js/compiled/out"
                                :output-to     "resources/public/js/compiled/app.js"
                                :output-dir    "resources/public/js/compiled/out"
-                               :optimizations :none}}]}
-  )
+                               :optimizations :none}}
+              {:id           "test"
+                :source-paths ["src/client" "src/common" "test/client"]
+                :compiler     {:output-to     "out/tests.js"
+                               :main          "sse-feed.test-runner"
+                               :optimizations :none}}]})

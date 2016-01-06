@@ -1,6 +1,7 @@
 /.idea
 /sse-feed.iml
 /logs
+/out
 /.lein-repl-history
 /figwheel_server.log
 /target
