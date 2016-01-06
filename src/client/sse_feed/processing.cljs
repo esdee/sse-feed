@@ -4,7 +4,7 @@
 
 (extend-protocol Message
   messages/Article
-  (process-message [article {:keys [articles]}]
+  (process-message [article {:keys [articles] :as app}]
     (->> article
          (conj (take 9 articles))
          (assoc app :articles))))
