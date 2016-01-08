@@ -1,6 +1,7 @@
 (ns sse-feed.service
   (:require [clojure.core.async :as async]
             [clojure.edn :as edn]
+            [clojure.tools.logging :as log]
             [io.pedestal.http :as bootstrap]
             [io.pedestal.http.route.definition :refer [defroutes]]
             [io.pedestal.http.sse :as sse]
@@ -8,28 +9,59 @@
             [redis-async.core :as redis-async]
             [ring.util.response :as ring-resp]))
 
-(def redis-conn (redis-async/make-pool {:hostname "localhost" :port 6379}))
+;; Ideally these values would come from env
+(def ^:private redis-conn {:hostname "localhost" :port 6379})
+(def ^:private topic "articles")
 
-(def topic "articles")
+(defn- make-pool
+  [opts]
+  (redis-async/make-pool opts))
 
-(defn redis->feed-channel
-  [redis-conn topic]
-  (async/pipe (redis-client/subscribe redis-conn topic)
-              (async/chan 1 (map #(edn/read-string (.unwrap %))))))
+(defn publish-article
+  "Use from the command line to publish an article to Redis"
+  [id title]
+  (let [article {:id id :title title}]
+    (async/<!! (redis-client/publish (make-pool redis-conn)
+                                     topic
+                                     (pr-str article)))
+    (println "Published: " article)))
 
-(defn send-article
-  [event-channel redis-conn topic]
-  (let [articles-channel (redis->feed-channel redis-conn topic)]
-    (async/go-loop [article (async/<! articles-channel)]
-      (when (async/>! event-channel {:name "article" :data (pr-str article)})
-        (recur (async/<! articles-channel))))))
+;;
+(defn- make-mult-sub
+  [sub parse-fn]
+  (let [chan (async/chan)
+        mult (async/mult chan)]
+    (async/go-loop [message-data (parse-fn (async/<! sub))]
+      (async/>! chan message-data)
+      (recur (async/<! sub)))
+    mult))
+
+(defonce ^:private articles-chan
+         (make-mult-sub (redis-client/subscribe (make-pool redis-conn) topic)
+                        ; Format the response we get back from the Redis subscription
+                        #(edn/read-string (.unwrap %))))
+
+(defn send-article-to-client
+  [event-channel listen-on-chan]
+  (let [tap-chan (async/chan)]
+    (async/tap listen-on-chan tap-chan)
+    (async/go-loop [article (async/<! tap-chan)]
+      (log/debug "**Retrieved article**" article)
+      (if
+        (try
+          (async/>! event-channel {:name "article" :data (pr-str article)})
+          (catch Throwable t (log/error t)))
+        (recur (async/<! tap-chan))
+        (do
+          (log/warn "Client disconnected")
+          (async/close! tap-chan))))))
 
 (defn sse-stream-ready
-  "Starts sending counter events to client."
+  "Starts listening for redis subscription events"
   ; citing context in fn args for documentation
   [event-channel ctx]
   (let [{:keys [request]} ctx]
-    (send-article event-channel redis-conn topic)))
+    (send-article-to-client event-channel articles-chan)))
 
 (defn about-page
   ; just making note of what is sent to this fn
