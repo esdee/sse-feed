@@ -13,6 +13,7 @@
                  [org.slf4j/jul-to-slf4j "1.7.7"]
                  [org.slf4j/jcl-over-slf4j "1.7.7"]
                  [org.slf4j/log4j-over-slf4j "1.7.7"]
+                 [org.clojure/tools.logging "0.3.1"]
 
                  ;; Redis
                  [redis-async "0.3.2"]
@@ -36,7 +37,8 @@
 
   :main ^{:skip-aot true} sse-feed.server
 
-  :profiles {:dev {:aliases {"run-dev" ["trampoline" "run" "-m" "sse-feed.server/run-dev"]}
+  :profiles {:dev {:aliases {"run-dev" ["trampoline" "run" "-m" "sse-feed.server/run-dev"]
+                             "publish-article" ["trampoline" "run" "-m" "sse-feed.service/publish-article"]}
                    :dependencies [[io.pedestal/pedestal.service-tools "0.4.1"]]
                    :source-paths ["dev"]}}
 
